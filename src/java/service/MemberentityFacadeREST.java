@@ -111,7 +111,43 @@ public class MemberentityFacadeREST extends AbstractFacade<Memberentity> {
             return Response.status(Response.Status.UNAUTHORIZED).build();
         }
     }
-
+    
+    @GET
+    @Path("getMember")
+    @Produces({"application/json"})
+    public Response getMember(@QueryParam("email") String email)
+    {
+        try{
+            Connection conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/islandfurniture-it07??zeroDateTimeBehavior=convertToNull&user=root&password=12345");
+            String stmt =  "SELECT * FROM memberentity m WHERE m.EMAIL=?";
+            PreparedStatement ps = conn.prepareStatement(stmt);
+            ps.setString(1,email);
+            ResultSet rs = ps.executeQuery();
+            
+            if(rs.next()){
+                Member m = new Member();
+                m.setName(rs.getString("NAME"));
+                m.setEmail(rs.getString("EMAIL"));
+                m.setPhone(rs.getString("PHONE"));
+                m.setCity(rs.getString("CITY"));
+                m.setAddress(rs.getString("ADDRESS"));
+                m.setSecurityQuestion(rs.getInt("SECURITYQUESTION"));
+                m.setSecurityAnswer(rs.getString("SECURITYANSWER"));
+                m.setAge(rs.getInt("AGE"));
+                m.setIncome(rs.getInt("INCOME"));
+                return Response.status(200).entity(m).build();
+            }
+            else
+            {
+                return Response.status(Response.Status.UNAUTHORIZED).build();
+            }
+        }
+        catch(Exception ex){
+            ex.printStackTrace();
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+    }
+    
     public String generatePasswordSalt() {
         byte[] salt = new byte[16];
         try {
