@@ -148,6 +148,54 @@ public class MemberentityFacadeREST extends AbstractFacade<Memberentity> {
         }
     }
     
+    @POST
+    @Path("memberEditProfile")
+    @Produces({"application/json"})
+    @Consumes({"application/json"})
+    public Response editMember(@QueryParam("name") String name, @QueryParam("phone") String phone,@QueryParam("country") String country,
+            @QueryParam("address") String address,@QueryParam("securityQuestion") int securityQuestion,@QueryParam("securityAnswer") String securityAnswer,
+            @QueryParam("age") int age,@QueryParam("income") int income,@QueryParam("email") String email, @QueryParam("password") String password)
+    {
+        try{
+            Connection conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/islandfurniture-it07??zeroDateTimeBehavior=convertToNull&user=root&password=12345");
+            String stmt =  "SELECT * FROM memberentity m WHERE m.EMAIL=?";
+            PreparedStatement ps = conn.prepareStatement(stmt);
+            ps.setString(1,email);
+            ResultSet rs = ps.executeQuery();
+            String passwordSalt = "";
+            String passwordHash = "";
+            if(rs.next()){
+                passwordSalt = rs.getString("PASSWORDSALT");
+                passwordHash = generatePasswordHash(passwordSalt, password);
+            }
+            stmt = "UPDATE memberentity m SET m.NAME=?,m.PHONE=?,m.CITY=?,m.ADDRESS=?,m.SECURITYQUESTION=?,m.SECURITYANSWER=?,m.AGE=?,m.INCOME=?,m.PASSWORDHASH=? WHERE m.EMAIL=?";
+            ps = conn.prepareStatement(stmt);
+            ps.setString(1,name);
+            ps.setString(2, phone);
+            ps.setString(3, country);
+            ps.setString(4, address);
+            ps.setInt(5, securityQuestion);
+            ps.setString(6, securityAnswer);
+            ps.setInt(7, age);
+            ps.setInt(8, income);
+            ps.setString(9, passwordHash);
+            ps.setString(10,email);
+            int result = ps.executeUpdate();
+            if(result >0)
+            {
+                return Response.status(200).build();
+            }
+            else
+            {
+                return Response.status(Response.Status.NOT_FOUND).build();
+            }
+        }
+        catch(Exception ex){
+            ex.printStackTrace();
+            return Response.status(Response.Status.NOT_FOUND).build();
+        }
+    }
+    
     public String generatePasswordSalt() {
         byte[] salt = new byte[16];
         try {
