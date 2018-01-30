@@ -168,7 +168,14 @@ public class MemberentityFacadeREST extends AbstractFacade<Memberentity> {
                 passwordSalt = rs.getString("PASSWORDSALT");
                 passwordHash = generatePasswordHash(passwordSalt, password);
             }
-            stmt = "UPDATE memberentity m SET m.NAME=?,m.PHONE=?,m.CITY=?,m.ADDRESS=?,m.SECURITYQUESTION=?,m.SECURITYANSWER=?,m.AGE=?,m.INCOME=?,m.PASSWORDHASH=? WHERE m.EMAIL=?";
+            if(!password.equals("")){
+                stmt = "UPDATE memberentity m SET m.NAME=?,m.PHONE=?,m.CITY=?,m.ADDRESS=?,m.SECURITYQUESTION=?,m.SECURITYANSWER=?,m.AGE=?,m.INCOME=?,m.PASSWORDHASH=? WHERE m.EMAIL=?";
+            }
+            else
+            {
+                 stmt = "UPDATE memberentity m SET m.NAME=?,m.PHONE=?,m.CITY=?,m.ADDRESS=?,m.SECURITYQUESTION=?,m.SECURITYANSWER=?,m.AGE=?,m.INCOME=? WHERE m.EMAIL=?";
+            
+            }
             ps = conn.prepareStatement(stmt);
             ps.setString(1,name);
             ps.setString(2, phone);
@@ -178,8 +185,15 @@ public class MemberentityFacadeREST extends AbstractFacade<Memberentity> {
             ps.setString(6, securityAnswer);
             ps.setInt(7, age);
             ps.setInt(8, income);
-            ps.setString(9, passwordHash);
-            ps.setString(10,email);
+            if(!password.equals(""))
+            {
+                ps.setString(9, passwordHash);
+                ps.setString(10,email);
+            }
+            else
+            {
+                ps.setString(9,email);
+            }
             int result = ps.executeUpdate();
             if(result >0)
             {
