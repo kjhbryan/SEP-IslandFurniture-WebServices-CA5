@@ -126,6 +126,7 @@ public class MemberentityFacadeREST extends AbstractFacade<Memberentity> {
             
             if(rs.next()){
                 Member m = new Member();
+                m.setId(rs.getLong("ID"));
                 m.setName(rs.getString("NAME"));
                 m.setEmail(rs.getString("EMAIL"));
                 m.setPhone(rs.getString("PHONE"));
