@@ -5,6 +5,9 @@ import Entity.Lineitementity;
 import Entity.Member;
 import Entity.Memberentity;
 import Entity.Qrphonesyncentity;
+import Entity.SalesRecordItem;
+import Entity.ShoppingCartLineItem;
+import Entity.Storeentity;
 import java.net.URI;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -33,6 +36,7 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
+import javax.ws.rs.core.GenericEntity;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
@@ -239,7 +243,7 @@ public class MemberentityFacadeREST extends AbstractFacade<Memberentity> {
         }
         return passwordHash;
     }
-
+    
     @GET
     @Path("uploadShoppingList")
     @Produces({"application/json"})
@@ -311,7 +315,110 @@ public class MemberentityFacadeREST extends AbstractFacade<Memberentity> {
             return "fail";
         }
     }
+    
+    @GET
+    @Path("getSalesHistory")
+    @Produces({"application/json"})
+    public Response getSalesHistory(@QueryParam("memberId") Long memberId, @QueryParam("countryId") Long countryId) {
+        int orderNo = 1;
+        Long salesRecordId = (long)0;
+        List<SalesRecordItem> salesRecordItems = new ArrayList<>();
+        try {
+            Connection conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/islandfurniture-it07?zeroDateTimeBehavior=convertToNull&user=root&password=12345");
+            String stmt = "SELECT * FROM salesrecordentity s,salesrecordentity_lineitementity sl WHERE MEMBER_ID = ? AND s.ID = sl.SalesRecordEntity_ID";
+            PreparedStatement ps = conn.prepareStatement(stmt);
+            ps.setLong(1, memberId);
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                if(salesRecordId != rs.getLong("ID"))
+                {
+                   SalesRecordItem s = new SalesRecordItem();
+                   s.setId(rs.getLong("ID"));
+                   salesRecordId = rs.getLong("ID");
+                   s.setOrderNo(orderNo);
+                   s.setDatePurchased(rs.getDate("CREATEDDATE"));
+                   s.setStoreName(getStoreDetails(rs.getInt("STORE_ID")).getName());
+                   s.setStoreAddress(getStoreDetails(rs.getInt("STORE_ID")).getAddress());
+                   s.setTotalAmount(rs.getDouble("AMOUNTDUE"));
+                   s.setShoppingCartLineItemList(getLineItemList(s.getId(), countryId));
+                   salesRecordItems.add(s);
+                   orderNo++; 
+                }
+                 
+            }
+            GenericEntity<List<SalesRecordItem>> entity = new GenericEntity<List<SalesRecordItem>>(salesRecordItems) {
+            };
+            return Response
+                    .status(200)
+                    .header("Access-Control-Allow-Origin", "*")
+                    .header("Access-Control-Allow-Headers", "origin, content-type, accept, authorization")
+                    .header("Access-Control-Allow-Credentials", "true")
+                    .header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, HEAD")
+                    .header("Access-Control-Max-Age", "1209600")
+                    .entity(entity)
+                    .build();
+        } catch (Exception ex) {
 
+            ex.printStackTrace();
+            return null;
+        }
+
+    }
+    
+    public List<ShoppingCartLineItem> getLineItemList(Long salesRecordId, Long countryId) {
+        List<ShoppingCartLineItem> shoppingCartLineItems = new ArrayList<>();
+        try {
+                 Connection conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/islandfurniture-it07?zeroDateTimeBehavior=convertToNull&user=root&password=12345");
+            String stmt = "SELECT * FROM salesrecordentity_lineitementity sl,lineitementity l,itementity i,furnitureentity f,item_countryentity ic WHERE sl.SalesRecordEntity_ID = ? AND sl.itemsPurchased_ID = l.ID AND i.ID = l.ITEM_ID AND i.ID = f.ID AND ic.ITEM_ID = i.ID AND ic.COUNTRY_ID = ?";
+            PreparedStatement ps = conn.prepareStatement(stmt);
+            ps.setLong(1, salesRecordId);
+            ps.setLong(2, countryId);
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                ShoppingCartLineItem s = new ShoppingCartLineItem();
+                s.setId(rs.getString("ITEM_ID"));
+                s.setImageURL(rs.getString("IMAGEURL"));
+                s.setSKU(rs.getString("SKU"));
+                s.setQuantity(rs.getInt("QUANTITY"));
+                s.setPrice(rs.getInt("RETAILPRICE"));
+                s.setName(rs.getString("NAME"));
+                shoppingCartLineItems.add(s);
+            }
+
+            return shoppingCartLineItems;
+        } catch (Exception ex) {
+
+            ex.printStackTrace();
+            return null;
+        }
+
+    }
+    public Storeentity getStoreDetails(int storeId) {
+
+           Storeentity s = new Storeentity();
+           try {
+               Connection conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/islandfurniture-it07?zeroDateTimeBehavior=convertToNull&user=root&password=12345");
+               String stmt = "SELECT * FROM storeentity s where s.ID = ?";
+               PreparedStatement ps = conn.prepareStatement(stmt);
+               ps.setLong(1, storeId);
+               ResultSet rs = ps.executeQuery();
+               if (rs.next()) {
+                   s = new Storeentity();
+                   s.setId(rs.getLong("ID"));
+                   s.setAddress(rs.getString("ADDRESS"));
+                   s.setEmail(rs.getString("EMAIL"));
+                   s.setName(rs.getString("NAME"));
+                   s.setPostalcode(rs.getString("POSTALCODE"));
+                   s.setTelephone(rs.getString("TELEPHONE"));
+
+               }
+               return s;
+           } catch (Exception ex) {
+
+               ex.printStackTrace();
+               return null;
+           }
+       }
     @Override
     protected EntityManager getEntityManager() {
         return em;
