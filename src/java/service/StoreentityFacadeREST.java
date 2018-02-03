@@ -79,8 +79,8 @@ public class StoreentityFacadeREST extends AbstractFacade<Storeentity> {
     @GET
     @Path("getQuantity")
     @Produces({"application/json"})
-    public Response getItemQuantityOfStore(@QueryParam("storeID") Long storeID, @QueryParam("SKU") String SKU) {
-        int qty = storeDb.getItemQuantityOfStore(storeID, SKU);
+    public Response getItemQuantityOfStore(@QueryParam("storeId") Long storeId, @QueryParam("SKU") String SKU) {
+        int qty = storeDb.getItemQuantityOfStore(storeId, SKU);
         if (qty == -1) {
             return Response.status(Response.Status.NOT_FOUND).build();
         }
@@ -90,9 +90,9 @@ public class StoreentityFacadeREST extends AbstractFacade<Storeentity> {
     @PUT
     @Path("createECommerceTransactionRecord")
     @Produces("application/json")
-    public Response createECommerceTransactionRecord(@QueryParam("finalPrice") double finalPrice, @QueryParam("memberId") Long memberId) {
+    public Response createECommerceTransactionRecord(@QueryParam("finalPrice") double finalPrice, @QueryParam("memberId") Long memberId,@QueryParam("storeId") Long storeId) {
 
-        int transactionRecordId = storeDb.createECommerceTransactionRecord(finalPrice, memberId);
+        int transactionRecordId = storeDb.createECommerceTransactionRecord(finalPrice, memberId,storeId);
         if (transactionRecordId == -1) {
             return Response.status(Response.Status.SERVICE_UNAVAILABLE).build();
         }
@@ -106,9 +106,9 @@ public class StoreentityFacadeREST extends AbstractFacade<Storeentity> {
     @Path("createECommerceLineItemRecord")
     @Consumes("application/json")
     @Produces("application/json")
-    public Response createECommerceLineItemRecord(@QueryParam("quantity") int quantity, @QueryParam("itemId") String itemId, @QueryParam("SKU") String SKU, @QueryParam("transactionRecordId") int transactionRecordId) {
+    public Response createECommerceLineItemRecord(@QueryParam("quantity") int quantity, @QueryParam("itemId") String itemId, @QueryParam("SKU") String SKU, @QueryParam("transactionRecordId") int transactionRecordId,@QueryParam("storeId") Long storeId) {
 
-        int result = storeDb.createECommerceLineItemRecord(quantity, itemId, SKU, transactionRecordId);
+        int result = storeDb.createECommerceLineItemRecord(quantity, itemId, SKU, transactionRecordId,storeId);
         if (result == 0) {
             return Response.status(Response.Status.SERVICE_UNAVAILABLE).build();
         }

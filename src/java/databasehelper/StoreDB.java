@@ -48,13 +48,13 @@ public class StoreDB {
         return list;
     }
     
-    public int getItemQuantityOfStore( Long storeID, String SKU) {
+    public int getItemQuantityOfStore( Long storeId, String SKU) {
         int qty = 0;
         try {
             Connection conn = DriverManager.getConnection(connection);
             String stmt = "SELECT sum(l.QUANTITY) as sum FROM storeentity s, warehouseentity w, storagebinentity sb, storagebinentity_lineitementity sbli, lineitementity l, itementity i where s.WAREHOUSE_ID=w.ID and w.ID=sb.WAREHOUSE_ID and sb.ID=sbli.StorageBinEntity_ID and sbli.lineItems_ID=l.ID and l.ITEM_ID=i.ID and s.ID=? and i.SKU=?";
             PreparedStatement ps = conn.prepareStatement(stmt);
-            ps.setLong(1, storeID);
+            ps.setLong(1, storeId);
             ps.setString(2, SKU);
             ResultSet rs = ps.executeQuery();
             if (rs.next()) {
@@ -70,13 +70,13 @@ public class StoreDB {
     
     
     
-    public int createECommerceTransactionRecord(double finalPrice, Long memberId) {
+    public int createECommerceTransactionRecord(double finalPrice, Long memberId,Long storeId) {
         
         int transactionRecordId = -1;
         try {
             Connection conn = DriverManager.getConnection(connection);
             
-            Long storeId = (long)59;
+            
             String currency = "SGD";
             String posName = "Counter 1";
             String servedByStaff = "Casher 1";
@@ -107,7 +107,7 @@ public class StoreDB {
         }
     }
     
-     public int createECommerceLineItemRecord(int quantity,  String itemId, String SKU,  int transactionRecordId) {
+     public int createECommerceLineItemRecord(int quantity,  String itemId, String SKU,  int transactionRecordId,Long storeId) {
          int result = 0;
         try {
             Connection conn = DriverManager.getConnection(connection);
@@ -135,7 +135,7 @@ public class StoreDB {
             stmt = "UPDATE  storeentity s, warehouseentity w, storagebinentity sb, storagebinentity_lineitementity sbli, lineitementity l, itementity i SET l.QUANTITY = ?  where s.WAREHOUSE_ID=w.ID and w.ID=sb.WAREHOUSE_ID and sb.ID=sbli.StorageBinEntity_ID and sbli.lineItems_ID=l.ID and l.ITEM_ID=i.ID and s.ID=? and i.SKU=? AND sbli.lineItems_ID = ?;";
             ps = conn.prepareStatement(stmt);
             ps.setInt(1, newQuantity);
-            ps.setInt(2, 59);
+            ps.setLong(2, storeId);
             ps.setString(3, SKU);
             ps.setInt(4, getQuantityDetails.get(1));
             result = ps.executeUpdate();
