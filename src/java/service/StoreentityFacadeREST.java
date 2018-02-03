@@ -1,6 +1,7 @@
 package service;
 
 import Entity.Storeentity;
+import databasehelper.StoreDB;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -32,6 +33,7 @@ public class StoreentityFacadeREST extends AbstractFacade<Storeentity> {
 
     @PersistenceContext(unitName = "WebService")
     private EntityManager em;
+    private StoreDB storeDb = new StoreDB();
 
     public StoreentityFacadeREST() {
         super(Storeentity.class);
@@ -68,17 +70,8 @@ public class StoreentityFacadeREST extends AbstractFacade<Storeentity> {
     @Path("stores")
     @Produces({"application/json"})
     public List<Storeentity> listAllStores() {
-        Query q = em.createQuery("Select s from Storeentity s where s.isdeleted=FALSE and s.countryId.name='Singapore'");
-        List<Storeentity> list = q.getResultList();
-        for (Storeentity s : list) {
-            em.detach(s);
-            s.setCountryId(null);
-            s.setRegionalofficeId(null);
-            s.setWarehouseId(null);
-        }
-        List<Storeentity> list2 = new ArrayList();
-        list2.add(list.get(0));
-        return list;
+
+        return storeDb.listAllStores(em);
     }
 
     //get the item quantity based on the storeID
@@ -87,168 +80,54 @@ public class StoreentityFacadeREST extends AbstractFacade<Storeentity> {
     @Path("getQuantity")
     @Produces({"application/json"})
     public Response getItemQuantityOfStore(@QueryParam("storeID") Long storeID, @QueryParam("SKU") String SKU) {
-        try {
-            Connection conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/islandfurniture-it07?zeroDateTimeBehavior=convertToNull&user=root&password=12345");
-            String stmt = "SELECT sum(l.QUANTITY) as sum FROM storeentity s, warehouseentity w, storagebinentity sb, storagebinentity_lineitementity sbli, lineitementity l, itementity i where s.WAREHOUSE_ID=w.ID and w.ID=sb.WAREHOUSE_ID and sb.ID=sbli.StorageBinEntity_ID and sbli.lineItems_ID=l.ID and l.ITEM_ID=i.ID and s.ID=? and i.SKU=?";
-            PreparedStatement ps = conn.prepareStatement(stmt);
-            ps.setLong(1, storeID);
-            ps.setString(2, SKU);
-            ResultSet rs = ps.executeQuery();
-            int qty = 0;
-            if (rs.next()) {
-                qty = rs.getInt("sum");
-            }
-
-            return Response.ok(qty + "", MediaType.APPLICATION_JSON).build();
-        } catch (Exception ex) {
-            ex.printStackTrace();
+        int qty = storeDb.getItemQuantityOfStore(storeID, SKU);
+        if (qty == -1) {
             return Response.status(Response.Status.NOT_FOUND).build();
         }
+        return Response.ok(qty + "", MediaType.APPLICATION_JSON).build();
     }
-    
+
     @PUT
     @Path("createECommerceTransactionRecord")
     @Produces("application/json")
     public Response createECommerceTransactionRecord(@QueryParam("finalPrice") double finalPrice, @QueryParam("memberId") Long memberId) {
-        try {
-              
-            Connection conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/islandfurniture-it07?zeroDateTimeBehavior=convertToNull&user=root&password=12345");
-            
-            Long storeId = (long)59;
-            String currency = "SGD";
-            String posName = "Counter 1";
-            String servedByStaff = "Casher 1";
-            Date dt = new Date();
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-            long receiptNo = dt.getTime(); 
-            String stmt = "INSERT INTO salesrecordentity (AMOUNTDUE,AMOUNTPAID,CREATEDDATE,CURRENCY,POSNAME,RECEIPTNO,SERVEDBYSTAFF,MEMBER_ID,STORE_ID) VALUES (?,?,?,?,?,?,?,?,?)";
-            PreparedStatement ps = conn.prepareStatement(stmt, Statement.RETURN_GENERATED_KEYS);
-            ps.setDouble(1, finalPrice);
-            ps.setDouble(2, finalPrice);
-            ps.setString(3, sdf.format(dt));
-            ps.setString(4, currency);
-            ps.setString(5, posName);
-            ps.setString(6, String.valueOf(receiptNo));
-            ps.setString(7, servedByStaff);
-            ps.setLong(8, memberId);
-            ps.setLong(9, storeId);
-            ps.executeUpdate();
 
-            int transactionRecordId = 0;
-            ResultSet rs = ps.getGeneratedKeys();
-            if (rs.next()) {
-                transactionRecordId = rs.getInt(1);
-            }
-            return Response
-                    .status(200)
-                    .entity(transactionRecordId+"")
-                    .build();
-        } catch (Exception ex) {
-            ex.printStackTrace();
+        int transactionRecordId = storeDb.createECommerceTransactionRecord(finalPrice, memberId);
+        if (transactionRecordId == -1) {
             return Response.status(Response.Status.SERVICE_UNAVAILABLE).build();
         }
+        return Response
+                .status(200)
+                .entity(transactionRecordId + "")
+                .build();
     }
-    
+
     @PUT
     @Path("createECommerceLineItemRecord")
     @Consumes("application/json")
     @Produces("application/json")
     public Response createECommerceLineItemRecord(@QueryParam("quantity") int quantity, @QueryParam("itemId") String itemId, @QueryParam("SKU") String SKU, @QueryParam("transactionRecordId") int transactionRecordId) {
-        try {
-            Connection conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/islandfurniture-it07?zeroDateTimeBehavior=convertToNull&user=root&password=12345");
-            String stmt = "INSERT INTO lineitementity (QUANTITY,ITEM_ID) VALUES (?,?)";
-            PreparedStatement ps = conn.prepareStatement(stmt, Statement.RETURN_GENERATED_KEYS);
-            ps.setInt(1, quantity);
-            ps.setInt(2, Integer.parseInt(itemId));
-            ps.executeUpdate();
 
-            int lineItemId = 0;
-            ResultSet rs = ps.getGeneratedKeys();
-            if (rs.next()) {
-                lineItemId = rs.getInt(1);
-            }
-
-            stmt = "INSERT INTO salesrecordentity_lineitementity (SalesRecordEntity_ID,itemsPurchased_ID) VALUES (?,?)";
-            ps = conn.prepareStatement(stmt);
-            ps.setInt(1, transactionRecordId);
-            ps.setInt(2, lineItemId);
-            ps.executeUpdate();
-
-            List<Integer> getQuantityDetails = getCurrentQuantityFromSKU(SKU);
-            int newQuantity = getQuantityDetails.get(0) - quantity;
-
-            stmt = "UPDATE  storeentity s, warehouseentity w, storagebinentity sb, storagebinentity_lineitementity sbli, lineitementity l, itementity i SET l.QUANTITY = ?  where s.WAREHOUSE_ID=w.ID and w.ID=sb.WAREHOUSE_ID and sb.ID=sbli.StorageBinEntity_ID and sbli.lineItems_ID=l.ID and l.ITEM_ID=i.ID and s.ID=? and i.SKU=? AND sbli.lineItems_ID = ?;";
-            ps = conn.prepareStatement(stmt);
-            ps.setInt(1, newQuantity);
-            ps.setInt(2, 59);
-            ps.setString(3, SKU);
-            ps.setInt(4, getQuantityDetails.get(1));
-            ps.executeUpdate();
-
-            return Response
-                    .status(200)
-                    .build();
-
-        } catch (Exception ex) {
-            ex.printStackTrace();
+        int result = storeDb.createECommerceLineItemRecord(quantity, itemId, SKU, transactionRecordId);
+        if (result == 0) {
             return Response.status(Response.Status.SERVICE_UNAVAILABLE).build();
         }
-    }
-    
-    
-    public List<Integer> getCurrentQuantityFromSKU(String SKU) {
-        List<Integer> ints = new ArrayList<>();
-        try {
-            Connection conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/islandfurniture-it07?zeroDateTimeBehavior=convertToNull&user=root&password=12345");
-            String stmt = "SELECT QUANTITY,lineItems_Id FROM storeentity s, warehouseentity w, storagebinentity sb, storagebinentity_lineitementity sbli, lineitementity l, itementity i where s.WAREHOUSE_ID=w.ID and w.ID=sb.WAREHOUSE_ID and sb.ID=sbli.StorageBinEntity_ID and sbli.lineItems_ID=l.ID and l.ITEM_ID=i.ID and s.ID=? and i.SKU=?";
-            PreparedStatement ps = conn.prepareStatement(stmt);
-            ps.setLong(1, 59);
-            ps.setString(2, SKU);
-            ResultSet rs = ps.executeQuery();
-            if (rs.next()) {
-                int quantity = rs.getInt("QUANTITY");
-                int lineItemsId = rs.getInt("lineItems_Id");
-                ints.add(quantity);
-                ints.add(lineItemsId);
-            }
-            return ints;
-        } catch (Exception ex) {
 
-            ex.printStackTrace();
-            return null;
-        }
-
+        return Response
+                .status(200)
+                .build();
     }
-    
+
     @GET
-    @Path("getStoreDetail")
+    @Path("getStoreNameOrAddress")
     @Produces({"application/json"})
-    public Response getStoreDetail(@QueryParam("storeId") Long storeId,@QueryParam("type") String type) {
+    public Response getStoreNameOrAddress(@QueryParam("storeId") Long storeId,@QueryParam ("type") String type) {
 
-        String typeReturn = "";
-        try {
-            Connection conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/islandfurniture-it07?zeroDateTimeBehavior=convertToNull&user=root&password=12345");
-            String stmt = "SELECT * FROM storeentity s where s.ID = ?";
-            PreparedStatement ps = conn.prepareStatement(stmt);
-            ps.setLong(1, storeId);
-            ResultSet rs = ps.executeQuery();
-            if (rs.next()) {
-                if(type.equals("name"))
-                {
-                    typeReturn = rs.getString("NAME");
-                }
-                else if (type.equals("address"))
-                {
-                    typeReturn = rs.getString("ADDRESS");
-                }
-            }
-            return Response.status(Response.Status.OK).entity(typeReturn).build();
-        } catch (Exception ex) {
-
-            ex.printStackTrace();
+        String typeReturn = storeDb.getStoreNameOrAddress(storeId,type);
+        if (typeReturn.equals("")) {
             return Response.status(Response.Status.NOT_FOUND).build();
-
         }
+        return Response.status(Response.Status.OK).entity(typeReturn).build();
     }
 
     @Override
